@@ -27,7 +27,7 @@ export function useChannels() {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  // Получение списка каналов
+  // Получение списка чатов
   const fetchChannels = async () => {
     try {
       setLoading(true);
@@ -44,9 +44,20 @@ export function useChannels() {
       console.log('Raw channels data:', channelsData);
       console.log('Channels count:', channelsData?.length || 0);
 
+      // Получаем настройки пользователя для фильтрации скрытых чатов (временно отключено)
+      // const { data: settingsData } = await supabase
+      //   .from('user_chat_settings')
+      //   .select('channel_id, hidden')
+      //   .eq('user_id', user?.id || '')
+      //   .eq('hidden', true);
+
+      // Фильтруем скрытые чаты (временно показываем все)
+      // const hiddenChannelIds = new Set(settingsData?.map(s => s.channel_id) || []);
+      const visibleChannels = channelsData || [];
+
       // Для личных чатов получаем информацию об участниках
       const channelsWithParticipants = await Promise.all(
-        (channelsData || []).map(async (channel) => {
+        visibleChannels.map(async (channel) => {
           if (channel.is_private && channel.participant_ids?.length > 0) {
             const { data: participants, error: participantsError } = await supabase
               .from('profiles')
@@ -70,7 +81,7 @@ export function useChannels() {
     }
   };
 
-  // Создание нового канала
+  // Создание нового чата
   const createChannel = async (name: string, subject: string, description?: string) => {
     if (!user) throw new Error('Пользователь не аутентифицирован');
 
@@ -95,7 +106,7 @@ export function useChannels() {
         throw error;
       }
 
-      // Добавляем новый канал в список
+      // Добавляем новый чат в список
       setChannels(prev => [data, ...prev]);
       return data;
     } catch (err: any) {
@@ -103,11 +114,11 @@ export function useChannels() {
 
       // Более понятные сообщения об ошибках
       if (err.message?.includes('row-level security')) {
-        throw new Error('Недостаточно прав для создания канала. Проверьте настройки безопасности.');
+        throw new Error('Недостаточно прав для создания чата. Проверьте настройки безопасности.');
       } else if (err.message?.includes('duplicate key')) {
-        throw new Error('Канал с таким названием уже существует.');
+        throw new Error('Чат с таким названием уже существует.');
       } else {
-        throw new Error(err.message || 'Ошибка при создании канала');
+        throw new Error(err.message || 'Ошибка при создании чата');
       }
     }
   };
@@ -128,7 +139,7 @@ export function useChannels() {
         throw error;
       }
 
-      // Обновляем список каналов
+      // Обновляем список чатов
       await fetchChannels();
       return data;
     } catch (err: any) {
@@ -144,7 +155,7 @@ export function useChannels() {
     }
   };
 
-  // Удаление канала (только для админа)
+  // Удаление чата (только для админа)
   const deleteChannel = async (channelId: string) => {
     if (!user) throw new Error('Пользователь не аутентифицирован');
 
@@ -157,11 +168,38 @@ export function useChannels() {
 
       if (error) throw error;
 
-      // Удаляем канал из списка
+      // Удаляем чат из списка
       setChannels(prev => prev.filter(channel => channel.id !== channelId));
     } catch (err: any) {
       console.error('Error deleting channel:', err);
       throw err;
+    }
+  };
+
+  // Удаление личного чата (для участников)
+  const deletePrivateChat = async (channelId: string, deleteForBoth: boolean = false) => {
+    if (!user) throw new Error('Пользователь не аутентифицирован');
+
+    try {
+      if (deleteForBoth) {
+        // Удаляем чат полностью
+        const { error } = await supabase
+          .from('channels')
+          .delete()
+          .eq('id', channelId);
+
+        if (error) throw error;
+      } else {
+        // Временно просто удаляем чат локально
+        // TODO: Реализовать скрытие через user_chat_settings после применения миграции
+        console.log('Hiding chat for user only (temporary implementation)');
+      }
+
+      // Удаляем чат из списка локально
+      setChannels(prev => prev.filter(channel => channel.id !== channelId));
+    } catch (err: any) {
+      console.error('Error deleting private chat:', err);
+      throw new Error(err.message || 'Ошибка при удалении чата');
     }
   };
 
@@ -176,6 +214,7 @@ export function useChannels() {
     createChannel,
     createPrivateChat,
     deleteChannel,
+    deletePrivateChat,
     refetch: fetchChannels,
   };
 }

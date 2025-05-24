@@ -73,7 +73,7 @@ export function useAuth() {
   };
 
   // Функция для регистрации
-  const signUp = async (email: string, password: string, metadata: { name: string }) => {
+  const signUp = async (email: string, password: string, metadata: { name: string; class_name?: string }) => {
     setLoading(true);
     console.log("useAuth.signUp called with:", email, metadata);
 
@@ -83,6 +83,7 @@ export function useAuth() {
         password,
         options: {
           data: metadata,
+          emailRedirectTo: undefined, // Отключаем подтверждение email для разработки
         },
       });
 
@@ -93,12 +94,32 @@ export function useAuth() {
         throw error;
       }
 
-      console.log("Sign up successful, user:", data.user);
-      setUser(data.user);
-      router.push('/dashboard');
-    } catch (error) {
+      if (data.user) {
+        console.log("Sign up successful, user:", data.user);
+        setUser(data.user);
+
+        // Небольшая задержка для завершения создания профиля
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1000);
+      } else {
+        throw new Error('Пользователь не был создан');
+      }
+    } catch (error: any) {
       console.error('Error signing up:', error);
-      throw error;
+
+      // Более понятные сообщения об ошибках
+      if (error.message?.includes('Database error saving new user')) {
+        throw new Error('Ошибка при создании профиля пользователя. Попробуйте еще раз.');
+      } else if (error.message?.includes('User already registered')) {
+        throw new Error('Пользователь с таким email уже зарегистрирован.');
+      } else if (error.message?.includes('Invalid email')) {
+        throw new Error('Неверный формат email адреса.');
+      } else if (error.message?.includes('Password should be at least')) {
+        throw new Error('Пароль должен содержать минимум 6 символов.');
+      } else {
+        throw error;
+      }
     } finally {
       setLoading(false);
     }

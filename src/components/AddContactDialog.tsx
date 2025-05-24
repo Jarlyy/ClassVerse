@@ -35,7 +35,7 @@ export function AddContactDialog({ isOpen, onClose }: AddContactDialogProps) {
   const handleSearchChange = async (value: string) => {
     setSearchTerm(value);
     setError("");
-    
+
     if (value.length >= 2) {
       try {
         setSearchLoading(true);
@@ -56,14 +56,14 @@ export function AddContactDialog({ isOpen, onClose }: AddContactDialogProps) {
     try {
       setLoading(true);
       setError("");
-      
+
       await addContact(userId);
-      
+
       // Обновляем список пользователей, чтобы показать, что контакт добавлен
-      setUsers(prev => prev.map(user => 
+      setUsers(prev => prev.map(user =>
         user.id === userId ? { ...user, is_contact: true } : user
       ));
-      
+
     } catch (err: any) {
       setError(err.message || "Ошибка при добавлении контакта");
     } finally {
@@ -90,14 +90,14 @@ export function AddContactDialog({ isOpen, onClose }: AddContactDialogProps) {
             Найдите пользователя и добавьте его в контакты
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="space-y-4 overflow-y-auto">
           {error && (
             <div className="p-3 bg-destructive/10 text-destructive rounded-md text-sm">
               {error}
             </div>
           )}
-          
+
           <div className="space-y-2">
             <label htmlFor="search" className="text-sm font-medium">
               Поиск пользователя
@@ -117,20 +117,20 @@ export function AddContactDialog({ isOpen, onClose }: AddContactDialogProps) {
               Введите минимум 2 символа для поиска
             </p>
           </div>
-          
+
           <div className="max-h-64 overflow-y-auto space-y-2">
             {searchLoading && (
               <div className="text-center text-muted-foreground py-4">
                 Поиск пользователей...
               </div>
             )}
-            
+
             {!searchLoading && searchTerm.length >= 2 && users.length === 0 && (
               <div className="text-center text-muted-foreground py-4">
                 Пользователи не найдены
               </div>
             )}
-            
+
             {searchTerm.length < 2 && (
               <div className="text-center text-muted-foreground py-8">
                 <UserPlus size={32} className="mx-auto mb-2 opacity-50" />
@@ -138,7 +138,7 @@ export function AddContactDialog({ isOpen, onClose }: AddContactDialogProps) {
                 <p className="text-xs">для поиска пользователей</p>
               </div>
             )}
-            
+
             {users.map((user) => (
               <div
                 key={user.id}
@@ -150,10 +150,12 @@ export function AddContactDialog({ isOpen, onClose }: AddContactDialogProps) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{user.name}</p>
-                    <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {user.class_name ? `${user.class_name} • ${user.email}` : user.email}
+                    </p>
                   </div>
                 </div>
-                
+
                 {user.is_contact ? (
                   <div className="flex items-center gap-1 text-green-600 text-sm">
                     <Check size={16} />
@@ -171,7 +173,7 @@ export function AddContactDialog({ isOpen, onClose }: AddContactDialogProps) {
               </div>
             ))}
           </div>
-          
+
           <div className="flex justify-end pt-2">
             <Button variant="outline" onClick={handleClose}>
               Закрыть

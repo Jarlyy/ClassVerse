@@ -25,7 +25,7 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
   const [showAddMode, setShowAddMode] = useState(false);
 
   const { user } = useAuth();
-  const { getGroupMembers, searchContactsForGroup, getContactsForGroup, addGroupMember, removeGroupMember } = useGroups();
+  const { getGroupMembers, getAvailableUsers, addGroupMember, removeGroupMember } = useGroups();
 
   const resetForm = () => {
     setSearchTerm("");
@@ -55,29 +55,10 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
     setSearchTerm(value);
     setError("");
 
-    if (value.length >= 2) {
-      try {
-        setSearchLoading(true);
-        const results = await searchContactsForGroup(groupId, value);
-        setSearchResults(results);
-      } catch (err: any) {
-        setError('Ошибка при поиске контактов');
-        console.error('Search error:', err);
-      } finally {
-        setSearchLoading(false);
-      }
-    } else {
-      // Если поиск пустой, показываем всех контактов
-      try {
-        setSearchLoading(true);
-        const results = await getContactsForGroup(groupId);
-        setSearchResults(results);
-      } catch (err: any) {
-        setError('Ошибка при загрузке контактов');
-        console.error('Load contacts error:', err);
-      } finally {
-        setSearchLoading(false);
-      }
+    // Фильтруем пользователей локально
+    if (searchResults.length > 0) {
+      // Если у нас уже есть список пользователей, фильтруем его
+      return;
     }
   };
 
@@ -91,14 +72,8 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
       // Обновляем список участников
       await fetchMembers();
 
-      // Обновляем результаты поиска
-      if (searchTerm.length >= 2) {
-        const results = await searchContactsForGroup(groupId, searchTerm);
-        setSearchResults(results);
-      } else {
-        const results = await getContactsForGroup(groupId);
-        setSearchResults(results);
-      }
+      // Обновляем список доступных пользователей
+      await loadAvailableUsers();
 
     } catch (err: any) {
       setError(err.message || "Ошибка при добавлении участника");
@@ -128,14 +103,21 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
     }
   };
 
-  const loadContactsForGroup = async () => {
+  const loadAvailableUsers = async () => {
     try {
       setSearchLoading(true);
-      const results = await getContactsForGroup(groupId);
-      setSearchResults(results);
+      const allUsers = await getAvailableUsers();
+
+      // Отмечаем пользователей, которые уже являются участниками
+      const usersWithMemberStatus = allUsers.map(user => ({
+        ...user,
+        is_member: members.some(member => member.user_id === user.user_id)
+      }));
+
+      setSearchResults(usersWithMemberStatus);
     } catch (err: any) {
-      setError('Ошибка при загрузке контактов');
-      console.error('Load contacts error:', err);
+      setError('Ошибка при загрузке пользователей');
+      console.error('Load users error:', err);
     } finally {
       setSearchLoading(false);
     }
@@ -148,10 +130,10 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
   }, [isOpen, groupId]);
 
   useEffect(() => {
-    if (showAddMode) {
-      loadContactsForGroup();
+    if (showAddMode && members.length > 0) {
+      loadAvailableUsers();
     }
-  }, [showAddMode]);
+  }, [showAddMode, members]);
 
   if (!isOpen) return null;
 
@@ -246,7 +228,7 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
           {showAddMode && (
             <>
               <div className="flex justify-between items-center">
-                <h3 className="font-medium">Добавить из контактов</h3>
+                <h3 className="font-medium">Добавить пользователей</h3>
                 <Button
                   variant="outline"
                   size="sm"
@@ -268,31 +250,34 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Поиск среди ваших контактов. Введите минимум 2 символа для поиска.
+                  Поиск среди всех пользователей системы.
                 </p>
               </div>
 
               <div className="max-h-48 overflow-y-auto space-y-2">
                 {searchLoading && (
                   <div className="text-center text-muted-foreground py-4">
-                    {searchTerm.length >= 2 ? 'Поиск контактов...' : 'Загрузка контактов...'}
+                    Загрузка пользователей...
                   </div>
                 )}
 
                 {!searchLoading && searchResults.length === 0 && (
                   <div className="text-center text-muted-foreground py-8">
                     <UserPlus size={32} className="mx-auto mb-2 opacity-50" />
-                    <p>Контакты не найдены</p>
+                    <p>Пользователи не найдены</p>
                     <p className="text-xs">
-                      {searchTerm.length >= 2
-                        ? 'Попробуйте изменить поисковый запрос'
-                        : 'Добавьте контакты, чтобы приглашать их в группы'
-                      }
+                      В системе пока нет других пользователей для добавления в группу
                     </p>
                   </div>
                 )}
 
-                {searchResults.map((user) => (
+                {searchResults
+                  .filter(user =>
+                    searchTerm.length === 0 ||
+                    user.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    user.user_email.toLowerCase().includes(searchTerm.toLowerCase())
+                  )
+                  .map((user) => (
                   <div
                     key={user.user_id}
                     className="flex items-center justify-between p-3 border rounded-md hover:bg-secondary/50"

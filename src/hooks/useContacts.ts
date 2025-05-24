@@ -8,6 +8,8 @@ export interface Contact {
   id: string;
   name: string;
   email: string;
+  class_name: string;
+  role: string;
   added_at: string;
   has_chat: boolean;
 }
@@ -16,6 +18,8 @@ export interface UserToAdd {
   id: string;
   name: string;
   email: string;
+  class_name: string;
+  role: string;
   is_contact: boolean;
 }
 
@@ -38,6 +42,8 @@ export function useContacts() {
         id: contact.contact_id,
         name: contact.contact_name,
         email: contact.contact_email,
+        class_name: contact.contact_class_name || '',
+        role: contact.contact_role || 'student',
         added_at: contact.added_at,
         has_chat: contact.has_chat
       }));

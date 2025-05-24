@@ -26,7 +26,7 @@ export function useMessages(channelId: string | null) {
 
   // Получение сообщений для канала
   const fetchMessages = async () => {
-    if (!channelId) {
+    if (!channelId || !user) {
       setMessages([]);
       setLoading(false);
       return;
@@ -34,6 +34,16 @@ export function useMessages(channelId: string | null) {
 
     try {
       setLoading(true);
+
+      // Получаем настройки пользователя для этого чата (временно отключено)
+      // const { data: settings } = await supabase
+      //   .from('user_chat_settings')
+      //   .select('cleared_at')
+      //   .eq('user_id', user.id)
+      //   .eq('channel_id', channelId)
+      //   .single();
+
+      // Строим запрос сообщений
       const { data, error } = await supabase
         .from('messages')
         .select(`
@@ -122,6 +132,23 @@ export function useMessages(channelId: string | null) {
     }
   };
 
+  // Очистка истории чата (только для текущего пользователя)
+  const clearChatHistory = async () => {
+    if (!user || !channelId) throw new Error('Пользователь не аутентифицирован или канал не выбран');
+
+    try {
+      // Временно просто очищаем сообщения локально
+      // TODO: Реализовать через user_chat_settings после применения миграции
+      setMessages([]);
+
+      // Показываем уведомление
+      alert('История чата очищена (только для вас)');
+    } catch (err: any) {
+      console.error('Error clearing chat history:', err);
+      throw new Error(err.message || 'Ошибка при очистке истории чата');
+    }
+  };
+
   // Подписка на новые сообщения в реальном времени
   useEffect(() => {
     if (!channelId) return;
@@ -188,6 +215,7 @@ export function useMessages(channelId: string | null) {
     error,
     sendMessage,
     deleteMessage,
+    clearChatHistory,
     refetch: fetchMessages,
   };
 }

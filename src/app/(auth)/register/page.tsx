@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [className, setClassName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const { signUp, loading } = useAuth();
@@ -19,16 +20,21 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    console.log("Attempting registration with:", { email, password, name });
+    console.log("Attempting registration with:", { email, password, name, className });
 
     if (password.length < 8) {
       setError("Пароль должен содержать минимум 8 символов");
       return;
     }
 
+    if (!className.trim()) {
+      setError("Пожалуйста, укажите ваш класс");
+      return;
+    }
+
     try {
       console.log("Calling signUp...");
-      await signUp(email, password, { name });
+      await signUp(email, password, { name, class_name: className });
       console.log("SignUp successful, redirecting to dashboard");
       router.push("/dashboard");
     } catch (err: any) {
@@ -76,6 +82,19 @@ export default function RegisterPage() {
                 placeholder="example@school.ru"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="className" className="text-sm font-medium">
+                Класс
+              </label>
+              <Input
+                id="className"
+                type="text"
+                placeholder="11А, 9Б, 10В..."
+                value={className}
+                onChange={(e) => setClassName(e.target.value)}
                 required
               />
             </div>

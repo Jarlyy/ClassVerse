@@ -16,7 +16,7 @@ interface CreateChatDialogProps {
 }
 
 export function CreateChatDialog({ isOpen, onClose, onCreateChannel, onCreateChatWithContact }: CreateChatDialogProps) {
-  const [chatType, setChatType] = useState<'channel' | 'contact' | null>(null);
+  const [chatType, setChatType] = useState<'group' | 'contact' | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -107,7 +107,7 @@ export function CreateChatDialog({ isOpen, onClose, onCreateChannel, onCreateCha
               <Button
                 variant="outline"
                 className="w-full h-auto p-4 flex flex-col items-center gap-2"
-                onClick={() => setChatType('channel')}
+                onClick={() => setChatType('group')}
               >
                 <Users size={24} />
                 <div className="text-center">
@@ -130,7 +130,7 @@ export function CreateChatDialog({ isOpen, onClose, onCreateChannel, onCreateCha
             </div>
           )}
 
-          {chatType === 'channel' && (
+          {chatType === 'group' && (
             <form onSubmit={handleCreateChannel} className="space-y-4">
               <div className="space-y-2">
                 <label htmlFor="name" className="text-sm font-medium">

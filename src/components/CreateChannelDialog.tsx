@@ -22,7 +22,7 @@ export function CreateChannelDialog({ isOpen, onClose, onCreateChannel }: Create
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    
+
     if (!name.trim() || !subject.trim()) {
       setError("Название и предмет обязательны для заполнения");
       return;
@@ -31,14 +31,14 @@ export function CreateChannelDialog({ isOpen, onClose, onCreateChannel }: Create
     try {
       setLoading(true);
       await onCreateChannel(name.trim(), subject.trim(), description.trim() || undefined);
-      
+
       // Очищаем форму и закрываем диалог
       setName("");
       setSubject("");
       setDescription("");
       onClose();
     } catch (err: any) {
-      setError(err.message || "Ошибка при создании канала");
+      setError(err.message || "Ошибка при создании чата");
     } finally {
       setLoading(false);
     }
@@ -51,16 +51,16 @@ export function CreateChannelDialog({ isOpen, onClose, onCreateChannel }: Create
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Создать новый канал</CardTitle>
+            <CardTitle>Создать новый чат</CardTitle>
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X size={18} />
             </Button>
           </div>
           <CardDescription>
-            Создайте канал для общения по определенному предмету
+            Создайте чат для общения по определенному предмету
           </CardDescription>
         </CardHeader>
-        
+
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
@@ -68,10 +68,10 @@ export function CreateChannelDialog({ isOpen, onClose, onCreateChannel }: Create
                 {error}
               </div>
             )}
-            
+
             <div className="space-y-2">
               <label htmlFor="name" className="text-sm font-medium">
-                Название канала *
+                Название чата *
               </label>
               <Input
                 id="name"
@@ -82,7 +82,7 @@ export function CreateChannelDialog({ isOpen, onClose, onCreateChannel }: Create
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <label htmlFor="subject" className="text-sm font-medium">
                 Предмет *
@@ -96,7 +96,7 @@ export function CreateChannelDialog({ isOpen, onClose, onCreateChannel }: Create
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <label htmlFor="description" className="text-sm font-medium">
                 Описание (необязательно)
@@ -104,13 +104,13 @@ export function CreateChannelDialog({ isOpen, onClose, onCreateChannel }: Create
               <Input
                 id="description"
                 type="text"
-                placeholder="Краткое описание канала"
+                placeholder="Краткое описание чата"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
           </CardContent>
-          
+
           <CardFooter className="flex gap-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
               Отмена

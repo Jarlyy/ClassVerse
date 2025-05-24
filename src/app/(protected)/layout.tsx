@@ -11,10 +11,12 @@ import {
   Users,
   Image,
   LogOut,
-  Menu
+  Menu,
+  Settings
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function ProtectedLayout({
   children,
@@ -58,13 +60,16 @@ export default function ProtectedLayout({
       {/* Мобильная навигация */}
       <div className="md:hidden p-4 border-b border-border flex justify-between items-center">
         <h1 className="text-xl font-bold">ClassVerse</h1>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          <Menu size={24} />
-        </Button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            <Menu size={24} />
+          </Button>
+        </div>
       </div>
 
       {/* Мобильное меню */}
@@ -124,6 +129,19 @@ export default function ProtectedLayout({
                   <span>Домашние задания</span>
                 </Link>
               </li>
+              <li>
+                <Link href="/settings"
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md ${
+                    isActive("/settings")
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-secondary"
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Settings size={18} />
+                  <span>Настройки</span>
+                </Link>
+              </li>
             </ul>
           </nav>
         </div>
@@ -131,8 +149,9 @@ export default function ProtectedLayout({
 
       {/* Боковая навигация */}
       <aside className="w-64 bg-card border-r border-border hidden md:block">
-        <div className="p-6">
+        <div className="p-6 flex justify-between items-center">
           <h1 className="text-2xl font-bold">ClassVerse</h1>
+          <ThemeToggle />
         </div>
 
         <nav className="px-3 py-2">
@@ -183,6 +202,18 @@ export default function ProtectedLayout({
               >
                 <BookOpen size={18} />
                 <span>Домашние задания</span>
+              </Link>
+            </li>
+            <li>
+              <Link href="/settings"
+                className={`flex items-center gap-3 px-3 py-2 rounded-md ${
+                  isActive("/settings")
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-secondary"
+                }`}
+              >
+                <Settings size={18} />
+                <span>Настройки</span>
               </Link>
             </li>
           </ul>

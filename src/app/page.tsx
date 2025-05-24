@@ -16,10 +16,10 @@ export default function Home() {
           <Card>
             <CardHeader>
               <CardTitle>Общение</CardTitle>
-              <CardDescription>Удобные чаты и каналы</CardDescription>
+              <CardDescription>Удобные чаты и группы</CardDescription>
             </CardHeader>
             <CardContent>
-              <p>Личные и групповые сообщения, голосовые каналы, каналы по предметам</p>
+              <p>Личные и групповые сообщения, голосовые чаты, чаты по предметам</p>
             </CardContent>
             <CardFooter>
               <Button variant="outline" className="w-full">Подробнее</Button>

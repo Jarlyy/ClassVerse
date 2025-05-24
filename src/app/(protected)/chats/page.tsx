@@ -12,6 +12,8 @@ import { useContacts } from "@/hooks/useContacts";
 import { useGroups } from "@/hooks/useGroups";
 import { CreateChatDialog } from "@/components/CreateChatDialog";
 import { GroupMembersDialog } from "@/components/GroupMembersDialog";
+import { ChatMenu } from "@/components/ChatMenu";
+import { ChatInfoPanel } from "@/components/ChatInfoPanel";
 
 export default function ChatsPage() {
   const [message, setMessage] = useState("");
@@ -19,11 +21,12 @@ export default function ChatsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showGroupMembersDialog, setShowGroupMembersDialog] = useState(false);
+  const [showChatInfo, setShowChatInfo] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { user } = useAuth();
-  const { channels, loading: channelsLoading, createChannel, createPrivateChat, deleteChannel, refetch: fetchChannels } = useChannels();
-  const { messages, loading: messagesLoading, sendMessage } = useMessages(selectedChannelId);
+  const { channels, loading: channelsLoading, createChannel, createPrivateChat, deleteChannel, deletePrivateChat, refetch: fetchChannels } = useChannels();
+  const { messages, loading: messagesLoading, sendMessage, clearChatHistory } = useMessages(selectedChannelId);
   const { createChatWithContact } = useContacts();
   const { createGroup } = useGroups();
 
@@ -36,13 +39,13 @@ export default function ChatsPage() {
     scrollToBottom();
   }, [messages]);
 
-  // Фильтрация каналов по поисковому запросу
+  // Фильтрация чатов по поисковому запросу
   const filteredChannels = channels.filter(channel =>
     channel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     channel.subject.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Выбранный канал
+  // Выбранный чат
   const selectedChannel = channels.find(channel => channel.id === selectedChannelId);
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -59,7 +62,7 @@ export default function ChatsPage() {
 
   const handleCreateChannel = async (name: string, description?: string) => {
     const groupId = await createGroup(name, description);
-    // Обновляем список каналов
+    // Обновляем список чатов
     await fetchChannels();
     // Автоматически выбираем созданную группу
     setSelectedChannelId(groupId);
@@ -69,12 +72,12 @@ export default function ChatsPage() {
     const chatId = await createChatWithContact(contactId);
     // Автоматически выбираем созданный чат
     setSelectedChannelId(chatId);
-    // Обновляем список каналов
+    // Обновляем список чатов
     await fetchChannels();
   };
 
   const handleDeleteChannel = async (channelId: string) => {
-    if (confirm("Вы уверены, что хотите удалить этот канал?")) {
+    if (confirm("Вы уверены, что хотите удалить этот чат?")) {
       try {
         await deleteChannel(channelId);
         if (selectedChannelId === channelId) {
@@ -86,12 +89,46 @@ export default function ChatsPage() {
     }
   };
 
-  // Получаем инициалы для аватара канала
+  // Обработчик удаления чата из меню
+  const handleChatDelete = async (deleteForBoth: boolean) => {
+    if (!selectedChannel) return;
+
+    try {
+      if (selectedChannel.is_private) {
+        await deletePrivateChat(selectedChannel.id, deleteForBoth);
+      } else {
+        await deleteChannel(selectedChannel.id);
+      }
+
+      setSelectedChannelId(null);
+      await fetchChannels();
+    } catch (error) {
+      console.error("Error deleting chat:", error);
+      alert("Ошибка при удалении чата");
+    }
+  };
+
+  // Обработчик очистки истории
+  const handleClearHistory = async () => {
+    try {
+      await clearChatHistory();
+    } catch (error) {
+      console.error("Error clearing chat history:", error);
+      alert("Ошибка при очистке истории чата");
+    }
+  };
+
+  // Обработчик клика на заголовок чата
+  const handleChatHeaderClick = () => {
+    setShowChatInfo(true);
+  };
+
+  // Получаем инициалы для аватара чата
   const getChannelInitials = (name: string) => {
     return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  // Получаем отображаемое имя канала
+  // Получаем отображаемое имя чата
   const getChannelDisplayName = (channel: Channel) => {
     if (channel.is_private) {
       // Для личных чатов показываем имя другого участника
@@ -103,7 +140,7 @@ export default function ChatsPage() {
       // Fallback: ищем по ID участников
       const otherUserId = channel.participant_ids.find(id => id !== user?.id);
       if (otherUserId) {
-        // Пытаемся найти имя в описании канала
+        // Пытаемся найти имя в описании чата
         const description = channel.description || '';
         const match = description.match(/между (.+) и (.+)$/);
         if (match) {
@@ -124,7 +161,7 @@ export default function ChatsPage() {
     return channel.name;
   };
 
-  // Получаем описание канала
+  // Получаем описание чата
   const getChannelDescription = (channel: Channel) => {
     if (channel.is_private) {
       return 'Личный чат';
@@ -153,7 +190,7 @@ export default function ChatsPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
             <Input
-              placeholder="Поиск каналов"
+              placeholder="Поиск чатов"
               className="pl-10"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -176,11 +213,11 @@ export default function ChatsPage() {
           <div className="space-y-1 p-2">
             {channelsLoading ? (
               <div className="p-4 text-center text-muted-foreground">
-                Загрузка каналов...
+                Загрузка чатов...
               </div>
             ) : filteredChannels.length === 0 ? (
               <div className="p-4 text-center text-muted-foreground">
-                {searchQuery ? "Каналы не найдены" : "Нет доступных каналов"}
+                {searchQuery ? "Чаты не найдены" : "Нет доступных чатов"}
               </div>
             ) : (
               filteredChannels.map((channel) => (
@@ -208,19 +245,6 @@ export default function ChatsPage() {
                     <div className="text-xs text-muted-foreground">
                       {formatTime(channel.updated_at)}
                     </div>
-                    {user?.id === channel.admin_id && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteChannel(channel.id);
-                        }}
-                      >
-                        <Trash2 size={12} />
-                      </Button>
-                    )}
                   </div>
                 </div>
               ))
@@ -235,7 +259,10 @@ export default function ChatsPage() {
           <>
             <div className="p-4 border-b border-border">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div
+                  className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 rounded-lg p-2 -m-2 transition-colors flex-1"
+                  onClick={handleChatHeaderClick}
+                >
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     selectedChannel.is_private
                       ? 'bg-green-500 text-white'
@@ -249,22 +276,33 @@ export default function ChatsPage() {
                   </div>
                 </div>
 
-                {/* Кнопка участников для групп */}
-                {!selectedChannel.is_private && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowGroupMembersDialog(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Users size={16} />
-                    Участники
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {/* Кнопка участников для групп */}
+                  {!selectedChannel.is_private && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowGroupMembersDialog(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Users size={16} />
+                      Участники
+                    </Button>
+                  )}
+
+                  {/* Меню чата */}
+                  <ChatMenu
+                    isPrivateChat={selectedChannel.is_private}
+                    onDeleteChat={handleChatDelete}
+                    onClearHistory={handleClearHistory}
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto p-4 space-y-4">
+            {/* Область сообщений с относительным позиционированием */}
+            <div className="flex-1 relative">
+              <div className="absolute inset-0 overflow-auto p-4 space-y-4">
               {messagesLoading ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-muted-foreground">Загрузка сообщений...</div>
@@ -272,7 +310,7 @@ export default function ChatsPage() {
               ) : messages.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center text-muted-foreground">
-                    <p>Пока нет сообщений в этом канале</p>
+                    <p>Пока нет сообщений в этом чате</p>
                     <p className="text-sm">Будьте первым, кто напишет сообщение!</p>
                   </div>
                 </div>
@@ -319,6 +357,21 @@ export default function ChatsPage() {
                 })
               )}
               <div ref={messagesEndRef} />
+              </div>
+
+              {/* Информационная панель чата внутри области сообщений */}
+              {showChatInfo && (
+                <ChatInfoPanel
+                  isOpen={showChatInfo}
+                  onClose={() => setShowChatInfo(false)}
+                  chatName={getChannelDisplayName(selectedChannel)}
+                  chatDescription={getChannelDescription(selectedChannel)}
+                  isPrivateChat={selectedChannel.is_private}
+                  lastSeen={selectedChannel.is_private ? "был(а) недавно" : undefined}
+                  username={selectedChannel.is_private ? `@${getChannelDisplayName(selectedChannel).toLowerCase().replace(/\s+/g, '_')}` : undefined}
+                  bio={selectedChannel.is_private ? "О себе" : undefined}
+                />
+              )}
             </div>
 
             <div className="p-4 border-t border-border">
@@ -339,8 +392,8 @@ export default function ChatsPage() {
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center text-muted-foreground">
-              <p className="text-lg font-medium mb-2">Выберите канал для общения</p>
-              <p>Выберите канал из списка слева или создайте новый</p>
+              <p className="text-lg font-medium mb-2">Выберите чат для общения</p>
+              <p>Выберите чат из списка слева или создайте новый</p>
             </div>
           </div>
         )}

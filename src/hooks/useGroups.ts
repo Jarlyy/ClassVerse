@@ -29,9 +29,9 @@ export function useGroups() {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase.rpc('create_group', {
+      const { data, error } = await supabase.rpc('create_group_chat', {
         group_name: name,
-        group_description: description || ''
+        group_description: description || null
       });
 
       if (error) throw error;
@@ -59,34 +59,25 @@ export function useGroups() {
     }
   };
 
-  // Поиск контактов для добавления в группу
-  const searchContactsForGroup = async (groupId: string, searchTerm: string): Promise<UserForGroup[]> => {
+  // Получение всех пользователей для добавления в группу (упрощенная версия)
+  const getAvailableUsers = async (): Promise<UserForGroup[]> => {
     try {
-      const { data, error } = await supabase.rpc('search_contacts_for_group', {
-        group_id: groupId,
-        search_term: searchTerm
-      });
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, email')
+        .neq('id', user?.id); // Исключаем текущего пользователя
 
       if (error) throw error;
-      return data || [];
-    } catch (err: any) {
-      console.error('Error searching contacts for group:', err);
-      throw new Error(err.message || 'Ошибка при поиске контактов');
-    }
-  };
 
-  // Получение всех контактов для добавления в группу
-  const getContactsForGroup = async (groupId: string): Promise<UserForGroup[]> => {
-    try {
-      const { data, error } = await supabase.rpc('get_contacts_for_group', {
-        group_id: groupId
-      });
-
-      if (error) throw error;
-      return data || [];
+      return (data || []).map(profile => ({
+        user_id: profile.id,
+        user_name: profile.name || profile.email || 'Неизвестный пользователь',
+        user_email: profile.email,
+        is_member: false // Будет определяться отдельно
+      }));
     } catch (err: any) {
-      console.error('Error getting contacts for group:', err);
-      throw new Error(err.message || 'Ошибка при получении контактов');
+      console.error('Error getting available users:', err);
+      throw new Error(err.message || 'Ошибка при получении пользователей');
     }
   };
 
@@ -98,7 +89,7 @@ export function useGroups() {
       setLoading(true);
       const { data, error } = await supabase.rpc('add_group_member', {
         group_id: groupId,
-        user_id_to_add: userId
+        new_user_id: userId
       });
 
       if (error) throw error;
@@ -106,10 +97,14 @@ export function useGroups() {
     } catch (err: any) {
       console.error('Error adding group member:', err);
 
-      if (err.message?.includes('permission')) {
+      if (err.message?.includes('permission') || err.message?.includes('Access denied')) {
         throw new Error('У вас нет прав для добавления участников в эту группу');
-      } else if (err.message?.includes('does not exist')) {
+      } else if (err.message?.includes('not found')) {
         throw new Error('Пользователь не найден');
+      } else if (err.message?.includes('already a member')) {
+        throw new Error('Пользователь уже является участником группы');
+      } else if (err.message?.includes('contacts')) {
+        throw new Error('Вы можете добавлять только пользователей из ваших контактов');
       } else {
         throw new Error(err.message || 'Ошибка при добавлении участника');
       }
@@ -126,7 +121,7 @@ export function useGroups() {
       setLoading(true);
       const { data, error } = await supabase.rpc('remove_group_member', {
         group_id: groupId,
-        user_id_to_remove: userId
+        remove_user_id: userId
       });
 
       if (error) throw error;
@@ -134,10 +129,14 @@ export function useGroups() {
     } catch (err: any) {
       console.error('Error removing group member:', err);
 
-      if (err.message?.includes('permission')) {
+      if (err.message?.includes('permission') || err.message?.includes('Access denied')) {
         throw new Error('У вас нет прав для удаления участников из этой группы');
-      } else if (err.message?.includes('Cannot remove group admin')) {
-        throw new Error('Нельзя удалить администратора группы');
+      } else if (err.message?.includes('cannot remove yourself')) {
+        throw new Error('Вы не можете удалить себя из группы');
+      } else if (err.message?.includes('cannot remove another admin')) {
+        throw new Error('Нельзя удалить другого администратора группы');
+      } else if (err.message?.includes('not a member')) {
+        throw new Error('Пользователь не является участником группы');
       } else {
         throw new Error(err.message || 'Ошибка при удалении участника');
       }
@@ -151,8 +150,7 @@ export function useGroups() {
     error,
     createGroup,
     getGroupMembers,
-    searchContactsForGroup,
-    getContactsForGroup,
+    getAvailableUsers,
     addGroupMember,
     removeGroupMember,
   };
