@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { X, Users, MessageCircle, UserPlus } from "lucide-react";
 import { useContacts } from "@/hooks/useContacts";
 import { AddContactDialog } from "./AddContactDialog";
@@ -11,7 +12,7 @@ import { AddContactDialog } from "./AddContactDialog";
 interface CreateChatDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateChannel: (name: string, description?: string) => Promise<void>;
+  onCreateChannel: (name: string, description?: string, hasSubgroups?: boolean) => Promise<void>;
   onCreateChatWithContact: (contactId: string) => Promise<void>;
 }
 
@@ -19,6 +20,7 @@ export function CreateChatDialog({ isOpen, onClose, onCreateChannel, onCreateCha
   const [chatType, setChatType] = useState<'group' | 'contact' | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [hasSubgroups, setHasSubgroups] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showAddContactDialog, setShowAddContactDialog] = useState(false);
@@ -29,6 +31,7 @@ export function CreateChatDialog({ isOpen, onClose, onCreateChannel, onCreateCha
     setChatType(null);
     setName("");
     setDescription("");
+    setHasSubgroups(false);
     setError("");
     setShowAddContactDialog(false);
   };
@@ -49,7 +52,7 @@ export function CreateChatDialog({ isOpen, onClose, onCreateChannel, onCreateCha
 
     try {
       setLoading(true);
-      await onCreateChannel(name.trim(), description.trim() || undefined);
+      await onCreateChannel(name.trim(), description.trim() || undefined, hasSubgroups);
       resetForm();
       onClose();
     } catch (err: any) {
@@ -158,6 +161,24 @@ export function CreateChatDialog({ isOpen, onClose, onCreateChannel, onCreateCha
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="hasSubgroups"
+                  checked={hasSubgroups}
+                  onCheckedChange={(checked) => setHasSubgroups(checked as boolean)}
+                />
+                <label
+                  htmlFor="hasSubgroups"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Разрешить создание подгрупп
+                </label>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Если включено, создатель группы сможет создавать подгруппы для разных тем
+              </p>
 
               <div className="flex gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => setChatType(null)} className="flex-1">

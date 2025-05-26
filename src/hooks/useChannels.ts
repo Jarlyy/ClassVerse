@@ -14,6 +14,9 @@ export interface Channel {
   participant_ids: string[];
   created_at: string;
   updated_at: string;
+  parent_channel_id?: string;
+  has_subgroups?: boolean;
+  is_class_group?: boolean;
   participants?: {
     id: string;
     name: string;
@@ -44,16 +47,20 @@ export function useChannels() {
       console.log('Raw channels data:', channelsData);
       console.log('Channels count:', channelsData?.length || 0);
 
-      // Получаем настройки пользователя для фильтрации скрытых чатов (временно отключено)
-      // const { data: settingsData } = await supabase
-      //   .from('user_chat_settings')
-      //   .select('channel_id, hidden')
-      //   .eq('user_id', user?.id || '')
-      //   .eq('hidden', true);
+      // Фильтруем каналы, где пользователь является участником или администратором
+      const userChannels = (channelsData || []).filter(channel => {
+        // Для личных чатов проверяем participant_ids
+        if (channel.is_private) {
+          return channel.participant_ids?.includes(user?.id || '');
+        }
+        // Для групповых чатов проверяем participant_ids или admin_id
+        return channel.participant_ids?.includes(user?.id || '') || channel.admin_id === user?.id;
+      });
 
-      // Фильтруем скрытые чаты (временно показываем все)
-      // const hiddenChannelIds = new Set(settingsData?.map(s => s.channel_id) || []);
-      const visibleChannels = channelsData || [];
+      console.log('Filtered user channels:', userChannels);
+      console.log('User channels count:', userChannels.length);
+
+      const visibleChannels = userChannels;
 
       // Для личных чатов получаем информацию об участниках
       const channelsWithParticipants = await Promise.all(
@@ -160,11 +167,9 @@ export function useChannels() {
     if (!user) throw new Error('Пользователь не аутентифицирован');
 
     try {
-      const { error } = await supabase
-        .from('channels')
-        .delete()
-        .eq('id', channelId)
-        .eq('admin_id', user.id); // Только админ может удалить
+      const { error } = await supabase.rpc('delete_channel', {
+        channel_id: channelId
+      });
 
       if (error) throw error;
 
@@ -172,7 +177,14 @@ export function useChannels() {
       setChannels(prev => prev.filter(channel => channel.id !== channelId));
     } catch (err: any) {
       console.error('Error deleting channel:', err);
-      throw err;
+
+      if (err.message?.includes('Access denied')) {
+        throw new Error('У вас нет прав для удаления этого чата. Только администратор может удалить чат.');
+      } else if (err.message?.includes('Channel not found')) {
+        throw new Error('Чат не найден');
+      } else {
+        throw new Error(err.message || 'Ошибка при удалении чата');
+      }
     }
   };
 
@@ -181,25 +193,25 @@ export function useChannels() {
     if (!user) throw new Error('Пользователь не аутентифицирован');
 
     try {
-      if (deleteForBoth) {
-        // Удаляем чат полностью
-        const { error } = await supabase
-          .from('channels')
-          .delete()
-          .eq('id', channelId);
+      const { error } = await supabase.rpc('delete_private_chat', {
+        channel_id: channelId,
+        delete_for_both: deleteForBoth
+      });
 
-        if (error) throw error;
-      } else {
-        // Временно просто удаляем чат локально
-        // TODO: Реализовать скрытие через user_chat_settings после применения миграции
-        console.log('Hiding chat for user only (temporary implementation)');
-      }
+      if (error) throw error;
 
       // Удаляем чат из списка локально
       setChannels(prev => prev.filter(channel => channel.id !== channelId));
     } catch (err: any) {
       console.error('Error deleting private chat:', err);
-      throw new Error(err.message || 'Ошибка при удалении чата');
+
+      if (err.message?.includes('Access denied')) {
+        throw new Error('У вас нет прав для удаления этого чата');
+      } else if (err.message?.includes('Channel not found')) {
+        throw new Error('Чат не найден');
+      } else {
+        throw new Error(err.message || 'Ошибка при удалении чата');
+      }
     }
   };
 

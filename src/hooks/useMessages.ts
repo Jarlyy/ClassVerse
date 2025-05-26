@@ -132,20 +132,30 @@ export function useMessages(channelId: string | null) {
     }
   };
 
-  // Очистка истории чата (только для текущего пользователя)
+  // Очистка истории чата
   const clearChatHistory = async () => {
     if (!user || !channelId) throw new Error('Пользователь не аутентифицирован или канал не выбран');
 
     try {
-      // Временно просто очищаем сообщения локально
-      // TODO: Реализовать через user_chat_settings после применения миграции
-      setMessages([]);
+      // Используем SQL функцию для очистки истории
+      const { error } = await supabase.rpc('clear_channel_history', {
+        channel_id: channelId
+      });
 
-      // Показываем уведомление
-      alert('История чата очищена (только для вас)');
+      if (error) throw error;
+
+      // Очищаем сообщения локально после успешной очистки на сервере
+      setMessages([]);
     } catch (err: any) {
       console.error('Error clearing chat history:', err);
-      throw new Error(err.message || 'Ошибка при очистке истории чата');
+
+      if (err.message?.includes('Access denied')) {
+        throw new Error('У вас нет прав для очистки истории этого чата');
+      } else if (err.message?.includes('Channel not found')) {
+        throw new Error('Чат не найден');
+      } else {
+        throw new Error(err.message || 'Ошибка при очистке истории чата');
+      }
     }
   };
 

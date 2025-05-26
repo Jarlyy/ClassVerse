@@ -27,6 +27,12 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
   const { user } = useAuth();
   const { getGroupMembers, getAvailableUsers, addGroupMember, removeGroupMember } = useGroups();
 
+  // Функция для безопасного получения инициалов
+  const getInitials = (name: string | null | undefined): string => {
+    if (!name || typeof name !== 'string') return '??';
+    return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2) || '??';
+  };
+
   const resetForm = () => {
     setSearchTerm("");
     setSearchResults([]);
@@ -45,6 +51,7 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
       const membersData = await getGroupMembers(groupId);
       setMembers(membersData);
     } catch (err: any) {
+      console.error('Error fetching members:', err);
       setError(err.message || "Ошибка при загрузке участников");
     } finally {
       setLoading(false);
@@ -183,7 +190,7 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
 
               <div className="max-h-64 overflow-y-auto space-y-2">
                 {loading && (
-                  <div className="text-center text-muted-foreground py-4">
+                  <div key="loading" className="text-center text-muted-foreground py-4">
                     Загрузка участников...
                   </div>
                 )}
@@ -195,11 +202,11 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm">
-                        {member.user_name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)}
+                        {getInitials(member.user_name)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="font-medium truncate">{member.user_name}</p>
+                          <p className="font-medium truncate">{member.user_name || member.user_email || 'Неизвестный пользователь'}</p>
                           {member.is_admin && (
                             <Crown size={14} className="text-yellow-500" />
                           )}
@@ -208,6 +215,7 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
                       </div>
                     </div>
 
+                    {/* Кнопка удаления только для администратора */}
                     {currentUserIsAdmin && !member.is_admin && member.user_id !== user?.id && (
                       <Button
                         variant="outline"
@@ -215,6 +223,7 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
                         onClick={() => handleRemoveMember(member.user_id)}
                         disabled={loading}
                         className="text-destructive hover:text-destructive"
+                        title="Удалить участника"
                       >
                         <UserMinus size={14} />
                       </Button>
@@ -256,13 +265,13 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
 
               <div className="max-h-48 overflow-y-auto space-y-2">
                 {searchLoading && (
-                  <div className="text-center text-muted-foreground py-4">
+                  <div key="search-loading" className="text-center text-muted-foreground py-4">
                     Загрузка пользователей...
                   </div>
                 )}
 
                 {!searchLoading && searchResults.length === 0 && (
-                  <div className="text-center text-muted-foreground py-8">
+                  <div key="no-results" className="text-center text-muted-foreground py-8">
                     <UserPlus size={32} className="mx-auto mb-2 opacity-50" />
                     <p>Пользователи не найдены</p>
                     <p className="text-xs">
@@ -274,8 +283,8 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
                 {searchResults
                   .filter(user =>
                     searchTerm.length === 0 ||
-                    user.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    user.user_email.toLowerCase().includes(searchTerm.toLowerCase())
+                    (user.user_name && user.user_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                    (user.user_email && user.user_email.toLowerCase().includes(searchTerm.toLowerCase()))
                   )
                   .map((user) => (
                   <div
@@ -284,10 +293,10 @@ export function GroupMembersDialog({ isOpen, onClose, groupId, groupName }: Grou
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm">
-                        {user.user_name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)}
+                        {getInitials(user.user_name)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{user.user_name}</p>
+                        <p className="font-medium truncate">{user.user_name || user.user_email || 'Неизвестный пользователь'}</p>
                         <p className="text-sm text-muted-foreground truncate">{user.user_email}</p>
                       </div>
                     </div>

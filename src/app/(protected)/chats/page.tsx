@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Search, Send, Plus, Trash2, Users } from "lucide-react";
-import { useChannels } from "@/hooks/useChannels";
+import { useChannels, Channel } from "@/hooks/useChannels";
 import { useMessages } from "@/hooks/useMessages";
 import { useAuth } from "@/hooks/useAuth";
 import { useContacts } from "@/hooks/useContacts";
@@ -14,6 +14,7 @@ import { CreateChatDialog } from "@/components/CreateChatDialog";
 import { GroupMembersDialog } from "@/components/GroupMembersDialog";
 import { ChatMenu } from "@/components/ChatMenu";
 import { ChatInfoPanel } from "@/components/ChatInfoPanel";
+import { AdminClassGroupButton } from "@/components/AdminClassGroupButton";
 
 export default function ChatsPage() {
   const [message, setMessage] = useState("");
@@ -28,7 +29,7 @@ export default function ChatsPage() {
   const { channels, loading: channelsLoading, createChannel, createPrivateChat, deleteChannel, deletePrivateChat, refetch: fetchChannels } = useChannels();
   const { messages, loading: messagesLoading, sendMessage, clearChatHistory } = useMessages(selectedChannelId);
   const { createChatWithContact } = useContacts();
-  const { createGroup } = useGroups();
+  const { createGroup, createClassGroup, createSubgroup, removeGroupMember } = useGroups();
 
   // Автоматическая прокрутка к последнему сообщению
   const scrollToBottom = () => {
@@ -60,12 +61,12 @@ export default function ChatsPage() {
     }
   };
 
-  const handleCreateChannel = async (name: string, description?: string) => {
-    const groupId = await createGroup(name, description);
+  const handleCreateChannel = async (name: string, description?: string, hasSubgroups?: boolean) => {
+    const group = await createGroup(name, description, hasSubgroups);
     // Обновляем список чатов
     await fetchChannels();
     // Автоматически выбираем созданную группу
-    setSelectedChannelId(groupId);
+    setSelectedChannelId(group.id);
   };
 
   const handleCreateChatWithContact = async (contactId: string) => {
@@ -96,15 +97,17 @@ export default function ChatsPage() {
     try {
       if (selectedChannel.is_private) {
         await deletePrivateChat(selectedChannel.id, deleteForBoth);
+        alert(deleteForBoth ? "Чат удален для обеих сторон" : "Чат удален только для вас");
       } else {
         await deleteChannel(selectedChannel.id);
+        alert("Чат успешно удален");
       }
 
       setSelectedChannelId(null);
       await fetchChannels();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting chat:", error);
-      alert("Ошибка при удалении чата");
+      alert(error.message || "Ошибка при удалении чата");
     }
   };
 
@@ -112,9 +115,30 @@ export default function ChatsPage() {
   const handleClearHistory = async () => {
     try {
       await clearChatHistory();
-    } catch (error) {
+      alert("История чата успешно очищена");
+    } catch (error: any) {
       console.error("Error clearing chat history:", error);
-      alert("Ошибка при очистке истории чата");
+      alert(error.message || "Ошибка при очистке истории чата");
+    }
+  };
+
+  // Обработчик выхода из группы
+  const handleLeaveGroup = async () => {
+    if (!selectedChannel || !user) return;
+
+    try {
+      await removeGroupMember(selectedChannel.id, user.id);
+
+      // Очищаем выбранный чат
+      setSelectedChannelId(null);
+
+      // Обновляем список чатов
+      await fetchChannels();
+
+      alert("Вы покинули группу");
+    } catch (error: any) {
+      console.error('Error leaving group:', error);
+      alert(error.message || "Ошибка при выходе из группы");
     }
   };
 
@@ -199,7 +223,7 @@ export default function ChatsPage() {
         </div>
 
         <div className="overflow-auto h-[calc(100vh-64px)]">
-          <div className="p-2">
+          <div className="p-2 space-y-2">
             <Button
               variant="outline"
               className="w-full justify-start"
@@ -208,6 +232,13 @@ export default function ChatsPage() {
               <Plus size={18} className="mr-2" />
               Новый чат
             </Button>
+
+            {/* Кнопка создания группы класса для администратора */}
+            <AdminClassGroupButton
+              onGroupCreated={async () => {
+                await fetchChannels();
+              }}
+            />
           </div>
 
           <div className="space-y-1 p-2">
@@ -293,8 +324,11 @@ export default function ChatsPage() {
                   {/* Меню чата */}
                   <ChatMenu
                     isPrivateChat={selectedChannel.is_private}
+                    isGroupChat={!selectedChannel.is_private}
+                    isUserGroupAdmin={selectedChannel.admin_id === user?.id}
                     onDeleteChat={handleChatDelete}
                     onClearHistory={handleClearHistory}
+                    onLeaveGroup={handleLeaveGroup}
                   />
                 </div>
               </div>
