@@ -17,6 +17,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function ProtectedLayout({
   children,
@@ -235,6 +236,8 @@ export default function ProtectedLayout({
       <main className="flex-1 overflow-auto">
         {children}
       </main>
+
+      <Toaster />
     </div>
   );
 }

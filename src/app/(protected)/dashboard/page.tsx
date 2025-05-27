@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSchedule } from "@/hooks/useSchedule";
 import { useAuth } from "@/hooks/useAuth";
+import { useHomework } from "@/hooks/useHomework";
 import { Calendar, Clock, MapPin, User, BookOpen, ChevronRight, Loader2 } from "lucide-react";
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { schedule, loading, loadSchedule } = useSchedule();
+  const { homework, loading: homeworkLoading } = useHomework();
   const [todaySchedule, setTodaySchedule] = useState<any[]>([]);
   const [initialized, setInitialized] = useState(false);
 
@@ -40,6 +42,53 @@ export default function DashboardPage() {
       setTodaySchedule(todayLessons);
     }
   }, [schedule, initialized]);
+
+  // Получаем ближайшие домашние задания (не выполненные, отсортированные по дате)
+  const getUpcomingHomework = () => {
+    return homework
+      .filter(hw => !hw.completed)
+      .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+      .slice(0, 3); // Показываем только 3 ближайших
+  };
+
+  // Форматирование даты для домашних заданий
+  const formatHomeworkDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Сбрасываем время для корректного сравнения
+    today.setHours(0, 0, 0, 0);
+    tomorrow.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+
+    if (date.getTime() === today.getTime()) {
+      return "Сегодня";
+    } else if (date.getTime() === tomorrow.getTime()) {
+      return "Завтра";
+    } else {
+      return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+    }
+  };
+
+  // Определение цвета статуса для домашних заданий
+  const getHomeworkStatusColor = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const diffTime = date.getTime() - today.getTime();
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+    if (diffDays < 0) {
+      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100";
+    } else if (diffDays <= 1) {
+      return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100";
+    } else if (diffDays <= 3) {
+      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100";
+    } else {
+      return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100";
+    }
+  };
 
   return (
     <div className="container mx-auto py-8">
@@ -210,38 +259,37 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="flex flex-col flex-1">
             <div className="flex-1">
-              <div className="space-y-3">
-                {/* Пример заданий - в будущем здесь будут реальные данные */}
-                <div className="p-3 border rounded-md">
-                  <div className="flex justify-between items-start mb-2">
-                    <p className="font-medium">Математика</p>
-                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
-                      До завтра
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Решить задачи №145-150 из учебника</p>
+              {homeworkLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="animate-spin" size={24} />
+                  <span className="ml-2">Загрузка заданий...</span>
                 </div>
-
-                <div className="p-3 border rounded-md">
-                  <div className="flex justify-between items-start mb-2">
-                    <p className="font-medium">Литература</p>
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                      До 25 мая
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Прочитать "Война и мир", том 1</p>
+              ) : (
+                <div className="space-y-3">
+                  {getUpcomingHomework().length > 0 ? (
+                    getUpcomingHomework().map(hw => (
+                      <div key={hw.id} className="p-3 border rounded-md">
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="font-medium">{hw.subject}</p>
+                          <span className={`text-xs px-2 py-1 rounded ${getHomeworkStatusColor(hw.due_date)}`}>
+                            До {formatHomeworkDate(hw.due_date)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {hw.task}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <BookOpen size={48} className="mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground">
+                        Нет невыполненных заданий
+                      </p>
+                    </div>
+                  )}
                 </div>
-
-                <div className="p-3 border rounded-md">
-                  <div className="flex justify-between items-start mb-2">
-                    <p className="font-medium">Физика</p>
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                      До 26 мая
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Подготовить доклад о Николе Тесле</p>
-                </div>
-              </div>
+              )}
             </div>
 
             <Button
